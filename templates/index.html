@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verilog Compiler</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #2c3e50, #3498db);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 80px;
+        }
+        
+        .header > div:first-child {
+            text-align: left;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 5px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 250px 1fr 1fr;
+            gap: 15px;
+            padding: 20px;
+            transition: grid-template-columns 0.3s ease;
+        }
+        
+        .main-content.sidebar-collapsed {
+            grid-template-columns: 40px 1fr 1fr;
+        }
+        
+        .input-section, .output-section {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-title {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .editor-container {
+            position: relative;
+            flex: 1;
+            min-height: 300px;
+            display: flex;
+        }
+        
+        .line-numbers {
+            background: #f1f3f4;
+            border: 2px solid #e0e0e0;
+            border-right: 1px solid #d0d0d0;
+            border-radius: 6px 0 0 6px;
+            padding: 10px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            text-align: right;
+            color: #666;
+            user-select: none;
+            min-width: 40px;
+            overflow: hidden;
+            white-space: nowrap;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        #verilogCode {
+            flex: 1;
+            height: 300px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border: 2px solid #e0e0e0;
+            border-left: none;
+            border-radius: 0 6px 6px 0;
+            padding: 10px;
+            resize: vertical;
+            background: #f8f9fa;
+            line-height: 1.4;
+            outline: none;
+        }
+        
+        .error-line {
+            background-color: #ffebee !important;
+            border-left: 4px solid #f44336;
+        }
+        
+        #verilogCode:focus {
+            outline: none;
+            border-color: #3498db;
+            background: white;
+        }
+        
+        #verilogCode.has-error {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+        
+        .line-numbers.has-error {
+            border-color: #f44336;
+            background: #ffcdd2;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+            align-items: center;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .auto-fix-btn {
+            background: linear-gradient(45deg, #e67e22, #d35400);
+        }
+        
+        .auto-fix-btn:hover {
+            background: linear-gradient(45deg, #d35400, #c0392b);
+            box-shadow: 0 5px 15px rgba(230, 126, 34, 0.4);
+        }
+        
+        .example-selector {
+            select {
+                padding: 8px 12px;
+                border: 2px solid #e0e0e0;
+                border-radius: 6px;
+                background: white;
+                font-size: 14px;
+            }
+        }
+        
+        .output-tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border-radius: 6px 6px 0 0;
+            margin-right: 2px;
+        }
+        
+        .tab.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .generated-code {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .tokens-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+        
+        .token {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .token-type {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .token-value {
+            color: #7f8c8d;
+            margin-left: 5px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .file-upload {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-btn:hover {
+            background: linear-gradient(45deg, #219a52, #27ae60);
+            transform: translateY(-2px);
+        }
+        
+        .file-list {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .file-list h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 1em;
+        }
+        
+        .file-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 2px;
+        }
+        
+        .file-size {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .file-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .load-btn {
+            background: #007bff;
+            color: white;
+        }
+        
+        .load-btn:hover {
+            background: #0056b3;
+        }
+        
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .remove-btn:hover {
+            background: #c82333;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            height: fit-content;
+            max-height: 600px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .sidebar.collapsed {
+            width: 40px;
+        }
+        
+        .sidebar.collapsed .sidebar-header h3,
+        .sidebar.collapsed .file-tree {
+            display: none;
+        }
+        
+        .sidebar.collapsed .toggle-btn {
+            transform: rotate(180deg);
+        }
+        
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #e9ecef;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+            color: #495057;
+            font-weight: 600;
+        }
+        
+        .toggle-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            color: #6c757d;
+        }
+        
+        .toggle-btn:hover {
+            background: #dee2e6;
+            color: #495057;
+        }
+        
+        .file-tree {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 20px 10px;
+            color: #6c757d;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .file-node {
+            margin: 2px 0;
+        }
+        
+        .file-item-tree {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+        }
+        
+        .file-item-tree:hover {
+            background: #e9ecef;
+        }
+        
+        .file-item-tree.active {
+            background: #007bff;
+            color: white;
+        }
+        
+        .file-icon {
+            margin-right: 8px;
+            font-size: 14px;
+            width: 16px;
+            text-align: center;
+        }
+        
+        .file-name-tree {
+            flex: 1;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .file-size-tree {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-left: 8px;
+        }
+        
+        .folder-node {
+            margin: 2px 0;
+        }
+        
+        .folder-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .folder-header:hover {
+            background: #e9ecef;
+        }
+        
+        .folder-toggle {
+            margin-right: 5px;
+            font-size: 12px;
+            transition: transform 0.2s ease;
+        }
+        
+        .folder-toggle.expanded {
+            transform: rotate(90deg);
+        }
+        
+        .folder-icon {
+            margin-right: 8px;
+            color: #ffc107;
+        }
+        
+        .folder-content {
+            margin-left: 20px;
+            border-left: 1px dashed #dee2e6;
+            padding-left: 10px;
+        }
+        
+        .folder-content.collapsed {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                padding: 15px;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .nav-links {
+                flex-direction: column !important;
+                gap: 10px !important;
+                width: 100%;
+            }
+            
+            .nav-links a {
+                display: block !important;
+                text-align: center !important;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 200px 1fr;
+                gap: 15px;
+            }
+            
+            .main-content.sidebar-collapsed {
+                grid-template-columns: 40px 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Verilog Compiler</h1>
+                <p>A complete Verilog compiler with lexical analysis, parsing, and code generation</p>
+            </div>
+            <div class="nav-links" style="display: flex; gap: 10px; align-items: center;">
+                <a href="/" style="background: rgba(255, 255, 255, 0.2); color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 500; transition: all 0.2s ease;">Compiler</a>
+                <a href="/dashboard" style="background: rgba(255, 255, 255, 0.2); color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 500; transition: all 0.2s ease;">Dashboard</a>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h3>File Explorer</h3>
+                    <button class="toggle-btn" onclick="toggleSidebar()">◀</button>
+                </div>
+                <div class="file-tree" id="fileTree">
+                    <div class="empty-state">
+                        No files uploaded yet. Use the "Upload Files" button to add Verilog files.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <h2 class="section-title">Verilog Source Code</h2>
+                
+                <div class="controls">
+                    <button class="btn" onclick="compileCode()">Compile</button>
+                    <button class="btn auto-fix-btn" onclick="autoFixAndCompile()">Auto-Fix & Compile</button>
+                    <button class="btn simulate-btn" onclick="showSimulationPanel()">🔄 Simulate</button>
+                    <button class="btn" onclick="clearCode()">Clear</button>
+                    <div class="example-selector">
+                        <select id="exampleSelect" onchange="loadExample()">
+                            <option value="">Load Example...</option>
+                        </select>
+                    </div>
+                    <div class="file-upload">
+                        <input type="file" id="fileUpload" accept=".v,.sv,.vh" multiple style="display: none;" onchange="handleFileUpload(event)">
+                        <input type="file" id="directoryUpload" webkitdirectory style="display: none;" onchange="handleDirectoryUpload(event)">
+                        <button class="btn upload-btn" onclick="document.getElementById('fileUpload').click()">Upload Files</button>
+                        <button class="btn upload-btn" onclick="document.getElementById('directoryUpload').click()">Upload Directory</button>
+                    </div>
+                </div>
+                
+                <div id="fileList" class="file-list" style="display: none;">
+                    <h4>Uploaded Files:</h4>
+                    <div id="fileItems" class="file-items"></div>
+                </div>
+                
+                <div class="editor-container">
+                    <div class="line-numbers" id="lineNumbers">1</div>
+                    <textarea id="verilogCode" placeholder="Enter your Verilog code here or upload Verilog files (.v, .sv, .vh)...
+
+// Example:
+module simple_gate(a, b, y);
+    input a, b;
+    output y;
+    
+    assign y = a & b;
+endmodule"></textarea>
+                </div>
+            </div>
+            
+            <div class="output-section">
+                <h2 class="section-title">Compilation Results</h2>
+                
+                <div class="output-tabs">
+                    <button class="tab active" onclick="showTab('generated')">Generated Code</button>
+                    <button class="tab" onclick="showTab('tokens')">Tokens</button>
+                    <button class="tab" onclick="showTab('stats')">Statistics</button>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <p>Compiling...</p>
+                </div>
+                
+                <div id="error-container"></div>
+                
+                <div id="generated-tab" class="tab-content active">
+                    <div id="generatedCode" class="generated-code">
+                        Click "Compile" to see the generated intermediate representation...
+                    </div>
+                </div>
+                
+                <div id="tokens-tab" class="tab-content">
+                    <div id="tokensDisplay" class="tokens-grid">
+                        Tokens will appear here after compilation...
+                    </div>
+                </div>
+                
+                <div id="stats-tab" class="tab-content">
+                    <div id="statsDisplay" class="stats-grid">
+                        Compilation statistics will appear here...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'generated';
+        let uploadedFiles = [];
+        let currentFileIndex = -1;
+        let sidebarCollapsed = false;
+        
+        // Load examples on page load
+        window.onload = function() {
+            loadExamples();
+            updateLineNumbers();
+            
+            // Add event listeners for textarea changes
+            const textarea = document.getElementById('verilogCode');
+            textarea.addEventListener('input', updateLineNumbers);
+            textarea.addEventListener('scroll', syncScroll);
+        };
+        
+        function updateLineNumbers() {
+            const textarea = document.getElementById('verilogCode');
+            const lineNumbers = document.getElementById('lineNumbers');
+            const lines = textarea.value.split('\n');
+            const lineCount = lines.length;
+            
+            let lineNumbersHTML = '';
+            for (let i = 1; i <= lineCount; i++) {
+                lineNumbersHTML += i + '<br>';
+            }
+            
+            // Remove the last <br> to avoid extra space
+            lineNumbersHTML = lineNumbersHTML.slice(0, -4);
+            
+            lineNumbers.innerHTML = lineNumbersHTML;
+            lineNumbers.scrollTop = textarea.scrollTop;
+        }
+        
+        function syncScroll() {
+            const textarea = document.getElementById('verilogCode');
+            const lineNumbers = document.getElementById('lineNumbers');
+            lineNumbers.scrollTop = textarea.scrollTop;
+        }
+        
+        function highlightErrorLine(lineNumber) {
+            const textarea = document.getElementById('verilogCode');
+            const lineNumbers = document.getElementById('lineNumbers');
+            
+            // Clear previous error highlighting
+            clearErrorHighlighting();
+            
+            if (lineNumber && lineNumber > 0) {
+                // Add error styling to textarea and line numbers
+                textarea.classList.add('has-error');
+                lineNumbers.classList.add('has-error');
+                
+                // Calculate the line position and highlight it
+                const lines = textarea.value.split('\n');
+                if (lineNumber <= lines.length) {
+                    // Rebuild line numbers with error indicator
+                    let lineNumbersHTML = '';
+                    for (let i = 1; i <= lines.length; i++) {
+                        if (i === lineNumber) {
+                            lineNumbersHTML += `<span style="color: #f44336; font-weight: bold;">⚠️ ${i}</span><br>`;
+                        } else {
+                            lineNumbersHTML += i + '<br>';
+                        }
+                    }
+                    
+                    // Remove the last <br>
+                    lineNumbersHTML = lineNumbersHTML.slice(0, -4);
+                    lineNumbers.innerHTML = lineNumbersHTML;
+                    
+                    // Scroll to error line
+                    const lineHeight = 18.2; // Based on line-height: 1.4 and font-size: 13px
+                    const scrollPosition = (lineNumber - 1) * lineHeight;
+                    textarea.scrollTop = scrollPosition;
+                    lineNumbers.scrollTop = scrollPosition;
+                }
+            }
+        }
+        
+        function clearErrorHighlighting() {
+            const textarea = document.getElementById('verilogCode');
+            const lineNumbers = document.getElementById('lineNumbers');
+            
+            textarea.classList.remove('has-error');
+            lineNumbers.classList.remove('has-error');
+            
+            // Restore normal line numbers
+            updateLineNumbers();
+        }
+        
+        function showAutoFixMessage(fixesSummary) {
+            // Create a notification for auto-fix results
+            const notification = document.createElement('div');
+            notification.className = 'auto-fix-notification';
+            notification.innerHTML = `
+                <div class="notification-header">
+                    <strong>🔧 Auto-Fix Applied</strong>
+                    <button onclick="this.parentElement.parentElement.remove()" style="float: right; background: none; border: none; color: #666; cursor: pointer;">×</button>
+                </div>
+                <div class="notification-content">
+                    <pre style="margin: 10px 0; font-size: 12px; white-space: pre-wrap;">${fixesSummary}</pre>
+                </div>
+            `;
+            
+            // Add notification styles
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+                border-radius: 8px;
+                padding: 15px;
+                max-width: 400px;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                font-family: inherit;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 10000);
+        }
+        
+        async function loadExamples() {
+            try {
+                const response = await fetch('/examples');
+                const examples = await response.json();
+                
+                const select = document.getElementById('exampleSelect');
+                for (const [key, value] of Object.entries(examples)) {
+                    const option = document.createElement('option');
+                    
+                    if (key.startsWith('📁') && typeof value === 'object') {
+                        // Directory example
+                        option.value = JSON.stringify(value);
+                        option.textContent = key;
+                        option.style.fontWeight = 'bold';
+                        option.style.color = '#007bff';
+                    } else {
+                        // Single file example
+                        option.value = value;
+                        option.textContent = key;
+                    }
+                    
+                    select.appendChild(option);
+                }
+            } catch (error) {
+                console.error('Failed to load examples:', error);
+            }
+        }
+        
+        function loadExample() {
+            const select = document.getElementById('exampleSelect');
+            const selectedValue = select.value;
+            
+            if (!selectedValue) return;
+            
+            try {
+                // Try to parse as JSON (directory structure)
+                const parsedValue = JSON.parse(selectedValue);
+                if (parsedValue.type === 'directory') {
+                    loadDirectoryExample(parsedValue);
+                    return;
+                }
+            } catch (e) {
+                // Not JSON, treat as single file content
+            }
+            
+            // Single file example
+            document.getElementById('verilogCode').value = selectedValue;
+            updateLineNumbers();
+            clearErrorHighlighting();
+        }
+        
+        function loadDirectoryExample(directoryData) {
+            // Clear existing uploaded files
+            uploadedFiles = [];
+            currentFileIndex = -1;
+            
+            // Convert directory structure to uploaded files
+            for (const [relativePath, content] of Object.entries(directoryData.files)) {
+                const fileName = relativePath;
+                const fileSize = new Blob([content]).size;
+                
+                // Create a mock File object
+                const mockFile = new File([content], fileName, { type: 'text/plain' });
+                
+                uploadedFiles.push({
+                    file: mockFile,
+                    name: fileName,
+                    size: fileSize,
+                    content: content
+                });
+            }
+            
+            // Update the file list and tree
+            updateFileList();
+            
+            // Load the main file (usually the top-level module)
+            const mainFiles = ['cpu_top.v', 'top.v', 'main.v'];
+            let mainFileIndex = -1;
+            
+            for (const mainFileName of mainFiles) {
+                mainFileIndex = uploadedFiles.findIndex(f => f.name.endsWith(mainFileName));
+                if (mainFileIndex !== -1) break;
+            }
+            
+            // If no main file found, load the first file
+            if (mainFileIndex === -1 && uploadedFiles.length > 0) {
+                mainFileIndex = 0;
+            }
+            
+            if (mainFileIndex !== -1) {
+                loadFileContentFromTree(mainFileIndex);
+            }
+            
+            // Update line numbers for loaded content
+            updateLineNumbers();
+            clearErrorHighlighting();
+            
+            // Show description if available
+            if (directoryData.description) {
+                showDirectoryDescription(directoryData.description);
+            }
+        }
+        
+        function showDirectoryDescription(description) {
+            // Create a modal or notification to show the directory description
+            const descriptionDiv = document.createElement('div');
+            descriptionDiv.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border: 2px solid #007bff;
+                border-radius: 8px;
+                padding: 20px;
+                max-width: 600px;
+                max-height: 400px;
+                overflow-y: auto;
+                z-index: 1000;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            `;
+            
+            descriptionDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #2c3e50;">Project Information</h3>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">×</button>
+                </div>
+                <div style="white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6;">
+                    ${description.replace(/\n/g, '<br>')}
+                </div>
+            `;
+            
+            // Add backdrop
+            const backdrop = document.createElement('div');
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+            `;
+            backdrop.onclick = () => {
+                backdrop.remove();
+                descriptionDiv.remove();
+            };
+            
+            document.body.appendChild(backdrop);
+            document.body.appendChild(descriptionDiv);
+        }
+        
+        function clearCode() {
+            document.getElementById('verilogCode').value = '';
+            document.getElementById('generatedCode').textContent = 'Click "Compile" to see the generated intermediate representation...';
+            document.getElementById('tokensDisplay').innerHTML = 'Tokens will appear here after compilation...';
+            document.getElementById('statsDisplay').innerHTML = 'Compilation statistics will appear here...';
+            document.getElementById('error-container').innerHTML = '';
+            
+            // Clear uploaded files and reset navigation
+            uploadedFiles = [];
+            currentFileIndex = -1;
+            updateFileList();
+        }
+        
+        function handleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            processFiles(files);
+            event.target.value = ''; // Clear the input
+        }
+        
+        function handleDirectoryUpload(event) {
+            const files = Array.from(event.target.files);
+            processFiles(files);
+            event.target.value = ''; // Clear the input
+        }
+        
+        function processFiles(files) {
+            let addedCount = 0;
+            let skippedCount = 0;
+            
+            files.forEach(file => {
+                // Check if file is already uploaded
+                if (uploadedFiles.find(f => f.name === file.webkitRelativePath && f.size === file.size)) {
+                    skippedCount++;
+                    return; // Skip duplicate files
+                }
+                
+                // Validate file type
+                const validExtensions = ['.v', '.sv', '.vh'];
+                const fileName = file.webkitRelativePath || file.name;
+                const fileExtension = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+                
+                if (!validExtensions.includes(fileExtension)) {
+                    return; // Skip non-Verilog files silently
+                }
+                
+                // Add file to uploaded files list
+                uploadedFiles.push({
+                    file: file,
+                    name: fileName,
+                    size: file.size,
+                    content: null // Will be loaded when needed
+                });
+                addedCount++;
+            });
+            
+            // Show feedback to user
+            if (addedCount > 0) {
+                console.log(`Added ${addedCount} Verilog files`);
+                if (skippedCount > 0) {
+                    console.log(`Skipped ${skippedCount} duplicate files`);
+                }
+            } else if (files.length > 0) {
+                alert('No valid Verilog files found. Please upload files with .v, .sv, or .vh extensions.');
+            }
+            
+            updateFileList();
+        }
+        
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            const fileItems = document.getElementById('fileItems');
+            
+            if (uploadedFiles.length === 0) {
+                fileList.style.display = 'none';
+            } else {
+                fileList.style.display = 'block';
+                fileItems.innerHTML = '';
+                
+                uploadedFiles.forEach((fileInfo, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <div class="file-info">
+                            <div class="file-name">${fileInfo.name}</div>
+                            <div class="file-size">${formatFileSize(fileInfo.size)}</div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="file-btn load-btn" onclick="loadFileContent(${index})">Load</button>
+                            <button class="file-btn remove-btn" onclick="removeFile(${index})">Remove</button>
+                        </div>
+                    `;
+                    fileItems.appendChild(fileItem);
+                });
+            }
+            
+            // Update file tree navigation
+            updateFileTree();
+        }
+        
+        function updateFileTree() {
+            const fileTree = document.getElementById('fileTree');
+            
+            if (uploadedFiles.length === 0) {
+                fileTree.innerHTML = `
+                    <div class="empty-state">
+                        No files uploaded yet. Use the "Upload Files" button to add Verilog files.
+                    </div>
+                `;
+                return;
+            }
+            
+            // Group files by directory structure
+            const fileStructure = groupFilesByDirectory();
+            fileTree.innerHTML = renderFileTree(fileStructure);
+        }
+        
+        function groupFilesByDirectory() {
+            const structure = {};
+            
+            uploadedFiles.forEach((fileInfo, index) => {
+                const pathParts = fileInfo.name.split('/');
+                const fileName = pathParts[pathParts.length - 1];
+                const dirPath = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
+                
+                if (!structure[dirPath]) {
+                    structure[dirPath] = {
+                        folders: {},
+                        files: []
+                    };
+                }
+                
+                structure[dirPath].files.push({
+                    ...fileInfo,
+                    displayName: fileName,
+                    index: index
+                });
+            });
+            
+            return structure;
+        }
+        
+        function renderFileTree(structure) {
+            let html = '';
+            
+            // Sort directories and files
+            const sortedDirs = Object.keys(structure).sort();
+            
+            for (const dirPath of sortedDirs) {
+                const dirData = structure[dirPath];
+                
+                if (dirPath === '') {
+                    // Root level files
+                    dirData.files.forEach(file => {
+                        html += renderFileNode(file);
+                    });
+                } else {
+                    // Directory
+                    html += renderDirectoryNode(dirPath, dirData);
+                }
+            }
+            
+            return html;
+        }
+        
+        function renderFileNode(file) {
+            const isActive = file.index === currentFileIndex ? 'active' : '';
+            const icon = getFileIcon(file.displayName);
+            
+            return `
+                <div class="file-node">
+                    <div class="file-item-tree ${isActive}" onclick="loadFileContentFromTree(${file.index})">
+                        <span class="file-icon">${icon}</span>
+                        <span class="file-name-tree">${file.displayName}</span>
+                        <span class="file-size-tree">${formatFileSize(file.size)}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderDirectoryNode(dirPath, dirData) {
+            const dirName = dirPath.split('/').pop();
+            const folderId = `folder-${dirPath.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            
+            let html = `
+                <div class="folder-node">
+                    <div class="folder-header" onclick="toggleFolder('${folderId}')">
+                        <span class="folder-toggle" id="${folderId}-toggle">▶</span>
+                        <span class="folder-icon">📁</span>
+                        <span>${dirName}</span>
+                    </div>
+                    <div class="folder-content collapsed" id="${folderId}">
+            `;
+            
+            // Add files in this directory
+            dirData.files.forEach(file => {
+                html += renderFileNode(file);
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+            
+            return html;
+        }
+        
+        function getFileIcon(fileName) {
+            const ext = fileName.toLowerCase().split('.').pop();
+            switch (ext) {
+                case 'v': return '📄';
+                case 'sv': return '📄';
+                case 'vh': return '📝';
+                default: return '📄';
+            }
+        }
+        
+        function toggleFolder(folderId) {
+            const content = document.getElementById(folderId);
+            const toggle = document.getElementById(folderId + '-toggle');
+            
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                toggle.classList.add('expanded');
+                toggle.textContent = '▼';
+            } else {
+                content.classList.add('collapsed');
+                toggle.classList.remove('expanded');
+                toggle.textContent = '▶';
+            }
+        }
+        
+        function loadFileContentFromTree(index) {
+            currentFileIndex = index;
+            loadFileContent(index);
+            updateFileTree(); // Refresh to show active state
+        }
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            sidebarCollapsed = !sidebarCollapsed;
+            
+            if (sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('sidebar-collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('sidebar-collapsed');
+            }
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        function loadFileContent(index) {
+            const fileInfo = uploadedFiles[index];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const content = e.target.result;
+                fileInfo.content = content;
+                
+                // Load content into editor
+                document.getElementById('verilogCode').value = content;
+                updateLineNumbers();
+                clearErrorHighlighting();
+                
+                // Show success message
+                const fileItems = document.getElementById('fileItems');
+                const fileItem = fileItems.children[index];
+                const loadBtn = fileItem.querySelector('.load-btn');
+                const originalText = loadBtn.textContent;
+                
+                loadBtn.textContent = 'Loaded';
+                loadBtn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    loadBtn.textContent = originalText;
+                    loadBtn.style.background = '#007bff';
+                }, 2000);
+            };
+            
+            reader.onerror = function() {
+                alert('Error reading file: ' + fileInfo.name);
+            };
+            
+            reader.readAsText(fileInfo.file);
+        }
+        
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            
+            // Update current file index if needed
+            if (currentFileIndex === index) {
+                currentFileIndex = -1;
+            } else if (currentFileIndex > index) {
+                currentFileIndex--;
+            }
+            
+            updateFileList();
+        }
+        
+        async function compileCode() {
+            await performCompilation(false);
+        }
+        
+        async function autoFixAndCompile() {
+            await performCompilation(true);
+        }
+        
+        async function performCompilation(autoFix = false) {
+            const code = document.getElementById('verilogCode').value.trim();
+            if (!code) {
+                alert('Please enter some Verilog code to compile.');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('error-container').innerHTML = '';
+            
+            try {
+                console.log('Sending compilation request with auto_fix:', autoFix);
+                const response = await fetch('/compile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        code: code,
+                        auto_fix: autoFix
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                const result = await response.json();
+                console.log('Full compilation result:', result);
+                displayResults(result);
+                
+                // If auto-fix was successful, update the code in the editor
+                if (result.auto_fixed && result.fixed_code) {
+                    document.getElementById('verilogCode').value = result.fixed_code;
+                    updateLineNumbers();
+                    clearErrorHighlighting();
+                    
+                    // Show fixes applied message
+                    if (result.fixes_summary) {
+                        showAutoFixMessage(result.fixes_summary);
+                    }
+                }
+                
+            } catch (error) {
+                displayError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+        
+        function displayResults(result) {
+            console.log('Compilation result:', result); // Debug log
+            
+            if (result.success) {
+                // Clear any error highlighting
+                clearErrorHighlighting();
+                
+                // Display generated code
+                const generatedCode = result.generated_code;
+                if (generatedCode && generatedCode.trim()) {
+                    document.getElementById('generatedCode').textContent = generatedCode;
+                } else {
+                    document.getElementById('generatedCode').textContent = 'Compilation completed but no code was generated. This may be normal for some Verilog constructs.';
+                }
+                
+                // Display tokens
+                displayTokens(result.tokens);
+                
+                // Display statistics
+                displayStatistics(result.statistics);
+                
+                // Clear any previous errors
+                document.getElementById('error-container').innerHTML = '';
+                
+            } else {
+                // Highlight error line if available
+                if (result.line && result.line > 0) {
+                    highlightErrorLine(result.line);
+                }
+                
+                displayError(result.error || 'Unknown compilation error');
+                
+                // Clear results on error
+                document.getElementById('generatedCode').textContent = 'Error occurred during compilation. Check the error message above.';
+                document.getElementById('tokensDisplay').innerHTML = '<div class="error">No tokens available due to compilation error.</div>';
+                document.getElementById('statsDisplay').innerHTML = '<div class="error">No statistics available due to compilation error.</div>';
+            }
+        }
+        
+        function displayTokens(tokens) {
+            const container = document.getElementById('tokensDisplay');
+            container.innerHTML = '';
+            
+            if (tokens && tokens.length > 0) {
+                tokens.forEach(token => {
+                    const tokenDiv = document.createElement('div');
+                    tokenDiv.className = 'token';
+                    tokenDiv.innerHTML = `
+                        <span class="token-type">${token.type}</span>
+                        <span class="token-value">'${token.value}'</span>
+                        <div style="font-size: 10px; color: #bdc3c7; margin-top: 3px;">
+                            Line ${token.line}, Col ${token.column}
+                        </div>
+                    `;
+                    container.appendChild(tokenDiv);
+                });
+            } else {
+                container.innerHTML = 'No tokens found.';
+            }
+        }
+        
+        function displayStatistics(stats) {
+            const container = document.getElementById('statsDisplay');
+            container.innerHTML = '';
+            
+            if (stats) {
+                for (const [key, value] of Object.entries(stats)) {
+                    const statDiv = document.createElement('div');
+                    statDiv.className = 'stat-card';
+                    statDiv.innerHTML = `
+                        <div class="stat-number">${value}</div>
+                        <div class="stat-label">${key.replace(/_/g, ' ').toUpperCase()}</div>
+                    `;
+                    container.appendChild(statDiv);
+                }
+            } else {
+                container.innerHTML = 'No statistics available.';
+            }
+        }
+        
+        function displayError(error) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `
+                <div class="error-message">
+                    <strong>Compilation Error:</strong><br>
+                    ${error}
+                </div>
+            `;
+            
+            // Also show error in generated code tab
+            document.getElementById('generatedCode').textContent = `Error: ${error}`;
+        }
+        
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+            
+            currentTab = tabName;
+        }
+
+        // Simulation functionality
+        let lastSimulationResult = null;
+
+        // Add missing showNotification function
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 6px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                min-width: 300px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                opacity: 1;
+                transform: translateX(0);
+                transition: all 0.3s ease;
+            `;
+            
+            // Set background color based on type
+            if (type === 'success') {
+                notification.style.background = '#28a745';
+            } else if (type === 'error') {
+                notification.style.background = '#dc3545';
+            } else if (type === 'info') {
+                notification.style.background = '#007bff';
+            } else {
+                notification.style.background = '#6c757d';
+            }
+            
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        async function showSimulationPanel() {
+            const code = document.getElementById('verilogCode').value.trim();
+            
+            if (!code) {
+                alert('Please enter some Verilog code first');
+                return;
+            }
+
+            // Run simulation directly with the code in the editor
+            await runSimulation();
+        }
+
+        async function runSimulation() {
+            const code = document.getElementById('verilogCode').value.trim();
+            
+            if (!code) {
+                alert('Please enter Verilog code to simulate');
+                return;
+            }
+
+            try {
+                showNotification('Running simulation...', 'info');
+                
+                // Prepare uploaded files with content
+                const filesWithContent = [];
+                for (let fileInfo of uploadedFiles) {
+                    if (!fileInfo.content) {
+                        // Load file content if not already loaded
+                        try {
+                            const content = await readFileContent(fileInfo.file);
+                            fileInfo.content = content;
+                        } catch (error) {
+                            console.warn('Could not read file:', fileInfo.name);
+                            continue;
+                        }
+                    }
+                    filesWithContent.push({
+                        name: fileInfo.name,
+                        content: fileInfo.content
+                    });
+                }
+
+                const response = await fetch('/simulate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        code: code,
+                        uploaded_files: filesWithContent
+                    })
+                });
+
+                const result = await response.json();
+                lastSimulationResult = result;
+                
+                if (result.success) {
+                    // Add simulation results to the results area
+                    displaySimulationResults(result);
+                    showNotification('Simulation completed successfully!', 'success');
+                } else {
+                    displayError('Simulation failed: ' + result.error);
+                    showNotification('Simulation failed: ' + result.error, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Simulation error:', error);
+                displayError('Simulation network error: ' + error.message);
+                showNotification('Simulation failed: ' + error.message, 'error');
+            }
+        }
+
+        function displaySimulationResults(result) {
+            // Show simulation tab and add results
+            showTab('generated');
+            
+            const generatedCode = document.getElementById('generatedCode');
+            
+            let simulationOutput = `=== SIMULATION RESULTS ===\n\n`;
+            simulationOutput += `Module: ${result.module_name}\n`;
+            simulationOutput += `Signals: ${result.signals ? result.signals.length : 0}\n`;
+            simulationOutput += `Duration: ${result.simulation_time || 0}${result.time_unit || 'ns'}\n\n`;
+            
+            if (result.signals && result.signals.length > 0) {
+                simulationOutput += `Signals monitored:\n`;
+                result.signals.forEach(signal => {
+                    simulationOutput += `  - ${signal.name} (${signal.type})\n`;
+                });
+                simulationOutput += `\nClick "View Waveforms" to see timing diagrams\n`;
+            }
+            
+            generatedCode.textContent = simulationOutput;
+            
+            // Add waveform viewer button if simulation successful
+            if (result.success && result.waveform_data && result.waveform_data.length > 0) {
+                const waveformBtn = document.createElement('button');
+                waveformBtn.className = 'btn';
+                waveformBtn.style.cssText = 'background: #007bff; color: white; margin-top: 10px;';
+                waveformBtn.textContent = '📊 View Waveforms';
+                waveformBtn.onclick = openWaveformViewer;
+                
+                const container = document.getElementById('generated-tab');
+                const existingBtn = container.querySelector('button');
+                if (existingBtn) existingBtn.remove();
+                container.appendChild(waveformBtn);
+            }
+        }
+
+        function openWaveformViewer() {
+            if (!lastSimulationResult || !lastSimulationResult.success) {
+                alert('No successful simulation results to display');
+                return;
+            }
+            
+            const dataStr = encodeURIComponent(JSON.stringify(lastSimulationResult));
+            const waveformWindow = window.open('/waveform?data=' + dataStr, 'waveform', 
+                'width=1200,height=800,scrollbars=yes,resizable=yes');
+            
+            if (!waveformWindow) {
+                alert('Please allow pop-ups to view waveforms');
+            }
+        }
+
+        // Helper function to read file content
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    resolve(e.target.result);
+                };
+                reader.onerror = function() {
+                    reject(new Error('Failed to read file'));
+                };
+                reader.readAsText(file);
+            });
+        }
+    </script>
+</body>
+</html>

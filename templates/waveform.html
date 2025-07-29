@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verilog Waveform Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow-x: auto;
+        }
+
+        .header {
+            background: #2d2d30;
+            padding: 15px 20px;
+            border-bottom: 1px solid #3e3e42;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            font-size: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background: #1177bb;
+        }
+
+        .btn.secondary {
+            background: #5a5a5a;
+        }
+
+        .btn.secondary:hover {
+            background: #6a6a6a;
+        }
+
+        .waveform-container {
+            height: calc(100vh - 80px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .time-ruler {
+            background: #252526;
+            height: 40px;
+            border-bottom: 1px solid #3e3e42;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .time-markers {
+            display: flex;
+            height: 100%;
+            position: relative;
+        }
+
+        .time-marker {
+            border-left: 1px solid #555;
+            padding-left: 5px;
+            font-size: 11px;
+            color: #cccccc;
+            display: flex;
+            align-items: center;
+            min-width: 60px;
+        }
+
+        .signals-area {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        .signal-row {
+            display: flex;
+            height: 60px;
+            border-bottom: 1px solid #333;
+            background: #1e1e1e;
+        }
+
+        .signal-row:nth-child(even) {
+            background: #262626;
+        }
+
+        .signal-label {
+            width: 200px;
+            padding: 15px;
+            background: #2d2d30;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+        }
+
+        .signal-name {
+            font-weight: bold;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .signal-type {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .waveform {
+            flex: 1;
+            position: relative;
+            height: 100%;
+            min-width: 800px;
+        }
+
+        .wave-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .wave-segment {
+            position: absolute;
+            height: 100%;
+            border-left: 1px solid #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #fff;
+            transition: background-color 0.1s;
+        }
+
+        .wave-segment.high {
+            background: #4CAF50;
+            top: 20%;
+            height: 20%;
+        }
+
+        .wave-segment.low {
+            background: #f44336;
+            top: 60%;
+            height: 20%;
+        }
+
+        .wave-segment.unknown {
+            background: #ff9800;
+            top: 40%;
+            height: 20%;
+        }
+
+        .wave-transition {
+            position: absolute;
+            width: 2px;
+            background: #ffffff;
+            top: 20%;
+            height: 60%;
+        }
+
+        .simulation-info {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(45, 45, 48, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #3e3e42;
+            backdrop-filter: blur(10px);
+            max-width: 250px;
+            z-index: 999;
+        }
+
+        .info-item {
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .info-label {
+            color: #888;
+            margin-right: 10px;
+        }
+
+        .error-message {
+            background: #722F37;
+            color: #F48771;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 4px;
+            border-left: 4px solid #F48771;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.1rem;
+            color: #888;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .zoom-slider {
+            width: 100px;
+        }
+
+        @media (max-width: 768px) {
+            .signal-label {
+                width: 150px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Verilog Waveform Viewer</h1>
+        <div class="controls">
+            <div class="zoom-controls">
+                <label>Zoom:</label>
+                <input type="range" id="zoomSlider" class="zoom-slider" min="0.1" max="5" step="0.1" value="1">
+                <span id="zoomLevel">1x</span>
+            </div>
+            <button class="btn secondary" onclick="resetZoom()">Reset</button>
+            <button class="btn" onclick="window.close()">Close</button>
+        </div>
+    </div>
+
+    <div class="waveform-container">
+        <div class="time-ruler">
+            <div class="time-markers" id="timeMarkers">
+                <!-- Time markers will be generated here -->
+            </div>
+        </div>
+        
+        <div class="signals-area" id="signalsArea">
+            <!-- Signal waveforms will be generated here -->
+        </div>
+    </div>
+
+    <div class="simulation-info" id="simulationInfo">
+        <div class="info-item">
+            <span class="info-label">Module:</span>
+            <span id="moduleName">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Signals:</span>
+            <span id="signalCount">0</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Duration:</span>
+            <span id="simDuration">0ns</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Time Unit:</span>
+            <span id="timeUnit">ns</span>
+        </div>
+    </div>
+
+    <script>
+        let waveformData = null;
+        let zoomLevel = 1;
+        let timeScale = 1;
+
+        // Initialize waveform viewer
+        function initWaveformViewer() {
+            // Get simulation data from URL parameters or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataStr = urlParams.get('data') || localStorage.getItem('waveformData');
+            
+            if (dataStr) {
+                try {
+                    waveformData = JSON.parse(decodeURIComponent(dataStr));
+                    renderWaveforms();
+                } catch (e) {
+                    showError('Failed to parse waveform data: ' + e.message);
+                }
+            } else {
+                showError('No waveform data provided');
+            }
+        }
+
+        function renderWaveforms() {
+            if (!waveformData || !waveformData.success) {
+                showError(waveformData?.error || 'Simulation failed');
+                return;
+            }
+
+            // Update simulation info
+            document.getElementById('moduleName').textContent = waveformData.module_name || 'Unknown';
+            document.getElementById('signalCount').textContent = waveformData.signals?.length || 0;
+            document.getElementById('simDuration').textContent = (waveformData.simulation_time || 0) + (waveformData.time_unit || 'ns').split('/')[0];
+            document.getElementById('timeUnit').textContent = waveformData.time_unit || 'ns';
+
+            // Calculate time scale
+            const maxTime = waveformData.simulation_time || 1000;
+            timeScale = 800 / maxTime; // Base scale for 800px width
+
+            // Render time ruler
+            renderTimeRuler(maxTime);
+
+            // Render signal waveforms
+            renderSignals();
+        }
+
+        function renderTimeRuler(maxTime) {
+            const timeMarkers = document.getElementById('timeMarkers');
+            timeMarkers.innerHTML = '';
+
+            const step = Math.max(1, Math.floor(maxTime / 10));
+            
+            for (let time = 0; time <= maxTime; time += step) {
+                const marker = document.createElement('div');
+                marker.className = 'time-marker';
+                marker.style.left = (time * timeScale * zoomLevel) + 'px';
+                marker.textContent = time + (waveformData.time_unit?.split('/')[0] || 'ns');
+                timeMarkers.appendChild(marker);
+            }
+        }
+
+        function renderSignals() {
+            const signalsArea = document.getElementById('signalsArea');
+            signalsArea.innerHTML = '';
+
+            if (!waveformData.waveform_data) {
+                showError('No waveform data available');
+                return;
+            }
+
+            waveformData.waveform_data.forEach(signal => {
+                const signalRow = document.createElement('div');
+                signalRow.className = 'signal-row';
+
+                // Signal label
+                const label = document.createElement('div');
+                label.className = 'signal-label';
+                label.innerHTML = `
+                    <div class="signal-name">${signal.name}</div>
+                    <div class="signal-type">${signal.type}${signal.width > 1 ? `[${signal.width-1}:0]` : ''}</div>
+                `;
+
+                // Waveform area
+                const waveform = document.createElement('div');
+                waveform.className = 'waveform';
+
+                // Render wave segments
+                renderWaveSegments(waveform, signal);
+
+                signalRow.appendChild(label);
+                signalRow.appendChild(waveform);
+                signalsArea.appendChild(signalRow);
+            });
+        }
+
+        function renderWaveSegments(container, signal) {
+            container.innerHTML = '';
+            
+            if (!signal.values || signal.values.length === 0) {
+                // No data - show unknown state
+                const segment = document.createElement('div');
+                segment.className = 'wave-segment unknown';
+                segment.style.left = '0px';
+                segment.style.width = '100%';
+                segment.textContent = 'X';
+                container.appendChild(segment);
+                return;
+            }
+
+            let lastTime = 0;
+            let lastValue = null;
+
+            signal.values.forEach((point, index) => {
+                const startTime = lastTime;
+                const endTime = point.time;
+                const width = (endTime - startTime) * timeScale * zoomLevel;
+
+                if (width > 0 && lastValue !== null) {
+                    const segment = document.createElement('div');
+                    segment.className = `wave-segment ${getValueClass(lastValue, signal.width)}`;
+                    segment.style.left = (startTime * timeScale * zoomLevel) + 'px';
+                    segment.style.width = width + 'px';
+                    
+                    // Show value text for wider segments
+                    if (width > 30) {
+                        if (signal.width === 1) {
+                            segment.textContent = lastValue ? '1' : '0';
+                        } else {
+                            segment.textContent = signal.width <= 4 ? 
+                                point.hex || lastValue.toString(16) : 
+                                point.binary || lastValue.toString(2);
+                        }
+                    }
+                    
+                    container.appendChild(segment);
+                }
+
+                // Add transition line
+                if (index > 0 && lastValue !== point.value) {
+                    const transition = document.createElement('div');
+                    transition.className = 'wave-transition';
+                    transition.style.left = (point.time * timeScale * zoomLevel) + 'px';
+                    container.appendChild(transition);
+                }
+
+                lastTime = point.time;
+                lastValue = point.value;
+            });
+
+            // Final segment to end of simulation
+            const maxTime = waveformData.simulation_time || lastTime;
+            if (lastTime < maxTime && lastValue !== null) {
+                const width = (maxTime - lastTime) * timeScale * zoomLevel;
+                const segment = document.createElement('div');
+                segment.className = `wave-segment ${getValueClass(lastValue, signal.width)}`;
+                segment.style.left = (lastTime * timeScale * zoomLevel) + 'px';
+                segment.style.width = width + 'px';
+                
+                if (width > 30) {
+                    segment.textContent = signal.width === 1 ? 
+                        (lastValue ? '1' : '0') : 
+                        lastValue.toString(signal.width <= 4 ? 16 : 2);
+                }
+                
+                container.appendChild(segment);
+            }
+        }
+
+        function getValueClass(value, width) {
+            if (value === undefined || value === null) return 'unknown';
+            if (width === 1) {
+                return value ? 'high' : 'low';
+            }
+            return value === 0 ? 'low' : 'high';
+        }
+
+        function showError(message) {
+            const signalsArea = document.getElementById('signalsArea');
+            signalsArea.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        // Zoom controls
+        document.getElementById('zoomSlider').addEventListener('input', function(e) {
+            zoomLevel = parseFloat(e.target.value);
+            document.getElementById('zoomLevel').textContent = zoomLevel.toFixed(1) + 'x';
+            
+            if (waveformData) {
+                renderTimeRuler(waveformData.simulation_time || 1000);
+                renderSignals();
+            }
+        });
+
+        function resetZoom() {
+            zoomLevel = 1;
+            document.getElementById('zoomSlider').value = 1;
+            document.getElementById('zoomLevel').textContent = '1x';
+            
+            if (waveformData) {
+                renderTimeRuler(waveformData.simulation_time || 1000);
+                renderSignals();
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initWaveformViewer);
+    </script>
+</body>
+</html>
