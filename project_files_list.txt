@@ -1,0 +1,38 @@
+VERILOG COMPILER PROJECT FILES
+==============================
+
+Core Compiler Components:
+- main.py (Command-line interface and compilation pipeline)
+- lexer.py (Tokenizes Verilog source code)
+- parser.py (Recursive descent parser, builds AST)
+- ast_nodes.py (Abstract syntax tree node definitions)
+- code_generator.py (Converts AST to intermediate representation)
+- symbol_table.py (Manages variable declarations and scopes)
+- errors.py (Custom exception hierarchy)
+- simulator.py (Verilog simulation engine)
+- syntax_fixer.py (Automatic syntax error correction)
+
+Web Application:
+- app.py (Flask web server and API endpoints)
+- models.py (Database models for PostgreSQL)
+
+Templates:
+- templates/index.html (Main compiler interface)
+- templates/dashboard.html (Analytics dashboard)
+- templates/waveform.html (Waveform viewer)
+
+Example Files:
+- examples/ (Directory with example Verilog modules)
+- test_cpu_fixed.v (Fixed CPU testbench)
+- complete_cpu_test.v (Complete testbench with all features)
+- test_error.v (Error testing file)
+
+Configuration:
+- .replit (Replit configuration)
+- pyproject.toml (Python dependencies)
+- uv.lock (Dependency lock file)
+- replit.md (Project documentation and architecture)
+
+This project includes a complete Verilog compiler with web interface,
+database integration, simulation capabilities, and comprehensive
+testbench language support.
